@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,41 +17,67 @@ import {
   AlertTriangle
 } from "lucide-react";
 
-// Mock data
-const farmerStats = {
-  totalFarmers: 1247,
-  activeFarmers: 1089,
-  newRegistrations: 23,
-  alertsSent: 156
-};
+import { apiService, MOCK_DATA } from "@/lib/api";
 
-const recentReports = [
-  {
-    id: 1,
-    title: "Weekly Crop Advisory",
-    sentTo: 1089,
-    date: "2024-01-15",
-    status: "delivered",
-    readRate: "87%"
-  },
-  {
-    id: 2,
-    title: "Weather Alert - Rain Warning",
-    sentTo: 1247,
-    date: "2024-01-14",
-    status: "delivered",
-    readRate: "95%"
-  }
-];
+// Component will fetch data using placeholder API endpoints
 
 export function AuthorityDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
+  const [farmerStats, setFarmerStats] = useState(MOCK_DATA.farmerStats);
+  const [recentReports, setRecentReports] = useState(MOCK_DATA.sampleReports);
   const [newReport, setNewReport] = useState({
     title: "",
     content: "",
     type: "advisory",
     urgent: false
   });
+
+  // Fetch data on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [stats, reports] = await Promise.all([
+          apiService.getFarmerStats(),
+          apiService.getReports()
+        ]);
+        setFarmerStats(stats);
+        setRecentReports(reports);
+      } catch (error) {
+        console.error('Failed to load authority dashboard data:', error);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  // Handle sending new advisory/report
+  const handleSendReport = async () => {
+    if (!newReport.title || !newReport.content) return;
+
+    try {
+      const result = await apiService.sendAdvisory({
+        ...newReport,
+        sentTo: farmerStats.totalFarmers,
+        date: new Date().toISOString().split('T')[0],
+        status: 'delivered'
+      });
+      
+      // Update recent reports list
+      setRecentReports(prev => [result, ...prev]);
+      
+      // Reset form
+      setNewReport({
+        title: "",
+        content: "",
+        type: "advisory",
+        urgent: false
+      });
+      
+      console.log('Report sent successfully:', result);
+    } catch (error) {
+      console.error('Failed to send report:', error);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -280,7 +306,7 @@ export function AuthorityDashboard() {
                       <Upload className="h-4 w-4 mr-2" />
                       Attach Files
                     </Button>
-                    <Button>
+                    <Button onClick={handleSendReport}>
                       <Send className="h-4 w-4 mr-2" />
                       Send to All Farmers
                     </Button>

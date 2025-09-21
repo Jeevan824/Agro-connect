@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { IoTDashboard } from "./IoTDashboard";
+import { apiService, MOCK_DATA } from "@/lib/api";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { 
   MessageSquare, 
   Bell, 
@@ -15,58 +17,75 @@ import {
   User
 } from "lucide-react";
 
-// Mock data
-const reports = [
-  {
-    id: 1,
-    title: "Crop Advisory - Wheat Season",
-    authority: "Agricultural Officer - Bangalore",
-    date: "2024-01-15",
-    type: "advisory",
-    urgent: false,
-    content: "Recommended fertilizer application for wheat crop during this season..."
-  },
-  {
-    id: 2,
-    title: "Weather Alert - Heavy Rain Expected",
-    authority: "Meteorological Department",
-    date: "2024-01-14",
-    type: "alert",
-    urgent: true,
-    content: "Heavy rainfall expected in the next 48 hours. Take necessary precautions..."
-  },
-  {
-    id: 3,
-    title: "Subsidy Application Deadline",
-    authority: "Rural Development Office",
-    date: "2024-01-13",
-    type: "notification",
-    urgent: false,
-    content: "Last date for subsidy applications is January 31st, 2024..."
-  }
-];
-
-const messages = [
-  {
-    id: 1,
-    from: "Dr. Rajesh Kumar",
-    role: "Agricultural Scientist",
-    message: "Your soil pH levels seem optimal. Continue with the current fertilizer schedule.",
-    time: "2 hours ago",
-    unread: true
-  },
-  {
-    id: 2,
-    from: "Weather Department",
-    role: "Official",
-    message: "Updated weather forecast for your region is now available.",
-    time: "1 day ago",
-    unread: false
-  }
-];
+// Component will fetch reports and messages using placeholder API endpoints
 
 export function FarmerDashboard() {
   const [activeTab, setActiveTab] = useState("iot");
+  const [reports, setReports] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch data on component mount
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      try {
+        setLoading(true);
+        const [reportData, messageData] = await Promise.all([
+          apiService.getReports(),
+          apiService.getMessages()
+        ]);
+        
+        // Transform reports data for farmer dashboard
+        const formattedReports = reportData.map((report: any) => ({
+          ...report,
+          authority: "District Agricultural Officer",
+          urgent: report.type === 'alert',
+          content: report.content || "Content will be loaded from backend"
+        }));
+        
+        // Transform messages data
+        const formattedMessages = messageData.map((msg: any) => ({
+          id: msg.id,
+          from: msg.farmerName || "Agricultural Officer",
+          role: "Official",
+          message: msg.message || "Message content will be loaded from backend",
+          time: "Recently",
+          unread: msg.status === 'unread'
+        }));
+        
+        setReports(formattedReports);
+        setMessages(formattedMessages);
+      } catch (error) {
+        console.error('Failed to load farmer dashboard data:', error);
+        // Use fallback mock data
+        setReports([
+          {
+            id: 1,
+            title: "Crop Advisory - Wheat Season",
+            authority: "Agricultural Officer - Bangalore",
+            date: "2024-01-15",
+            type: "advisory",
+            urgent: false,
+            content: "Recommended fertilizer application for wheat crop during this season..."
+          }
+        ]);
+        setMessages([
+          {
+            id: 1,
+            from: "Dr. Rajesh Kumar",
+            role: "Agricultural Scientist",
+            message: "Your soil pH levels seem optimal. Continue with the current fertilizer schedule.",
+            time: "2 hours ago",
+            unread: true
+          }
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDashboardData();
+  }, []);
 
   const getTypeColor = (type: string, urgent: boolean) => {
     if (urgent) return "bg-destructive text-destructive-foreground";

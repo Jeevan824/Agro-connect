@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Thermometer, Droplets, Gauge, TrendingUp, TrendingDown, Wifi, WifiOff } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { apiService, MOCK_DATA } from "@/lib/api";
 
 // Types for sensor data
 interface SensorReading {
@@ -25,59 +26,18 @@ interface CurrentReadings {
   soilMoisture: CurrentReading;
 }
 
-// API endpoints (placeholder)
-const API_BASE_URL = 'https://api.farm-iot.example.com';
-
-// Simulated API fetch function
-const fetchSensorData = async (): Promise<SensorReading[]> => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 300));
-  
-  // Generate realistic sensor data with some randomness
-  const now = new Date();
-  const data: SensorReading[] = [];
-  
-  for (let i = 5; i >= 0; i--) {
-    const time = new Date(now.getTime() - i * 4 * 60 * 60 * 1000);
-    data.push({
-      time: time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-      temperature: Math.round((22 + Math.random() * 12 + Math.sin(i * 0.5) * 5) * 10) / 10,
-      humidity: Math.round((50 + Math.random() * 30 + Math.cos(i * 0.3) * 10) * 10) / 10,
-      soilMoisture: Math.round((35 + Math.random() * 20 + Math.sin(i * 0.7) * 8) * 10) / 10,
-    });
+// Helper function to determine sensor status
+const getSensorStatus = (value: number, type: 'temperature' | 'humidity' | 'soilMoisture') => {
+  switch (type) {
+    case 'temperature':
+      return value < 18 ? 'low' : value > 35 ? 'critical' : value > 25 ? 'optimal' : 'good';
+    case 'humidity':
+      return value < 40 ? 'low' : value > 80 ? 'critical' : value > 60 ? 'optimal' : 'good';
+    case 'soilMoisture':
+      return value < 30 ? 'critical' : value < 40 ? 'low' : value > 60 ? 'optimal' : 'good';
+    default:
+      return 'good';
   }
-  
-  return data;
-};
-
-const fetchCurrentReadings = async (): Promise<CurrentReadings> => {
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 200));
-  
-  const temp = Math.round((20 + Math.random() * 15) * 10) / 10;
-  const humid = Math.round((45 + Math.random() * 35) * 10) / 10;
-  const soil = Math.round((30 + Math.random() * 25) * 10) / 10;
-  
-  return {
-    temperature: { 
-      value: temp, 
-      unit: '°C', 
-      status: temp < 18 ? 'low' : temp > 35 ? 'critical' : temp > 25 ? 'optimal' : 'good',
-      trend: Math.random() > 0.5 ? 'up' : 'down'
-    },
-    humidity: { 
-      value: humid, 
-      unit: '%', 
-      status: humid < 40 ? 'low' : humid > 80 ? 'critical' : humid > 60 ? 'optimal' : 'good',
-      trend: Math.random() > 0.5 ? 'up' : 'down'
-    },
-    soilMoisture: { 
-      value: soil, 
-      unit: '%', 
-      status: soil < 30 ? 'critical' : soil < 40 ? 'low' : soil > 60 ? 'optimal' : 'good',
-      trend: Math.random() > 0.5 ? 'up' : 'down'
-    }
-  };
 };
 
 export function IoTDashboard() {
@@ -90,13 +50,39 @@ export function IoTDashboard() {
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        const [sensorResponse, currentResponse] = await Promise.all([
-          fetchSensorData(),
-          fetchCurrentReadings()
+        // Fetch sensor history and current readings using placeholder API
+        const [sensorHistory, currentReading] = await Promise.all([
+          apiService.getSensorHistory(6), // Last 6 hours
+          apiService.getCurrentSensorData()
         ]);
-        setSensorData(sensorResponse);
-        setCurrentReadings(currentResponse);
+        
+        setSensorData(sensorHistory);
+        
+        // Transform current reading into expected format
+        const transformedReadings: CurrentReadings = {
+          temperature: {
+            value: currentReading.temperature,
+            unit: '°C',
+            status: getSensorStatus(currentReading.temperature, 'temperature'),
+            trend: Math.random() > 0.5 ? 'up' : 'down'
+          },
+          humidity: {
+            value: currentReading.humidity,
+            unit: '%',
+            status: getSensorStatus(currentReading.humidity, 'humidity'),
+            trend: Math.random() > 0.5 ? 'up' : 'down'
+          },
+          soilMoisture: {
+            value: currentReading.soilMoisture,
+            unit: '%',
+            status: getSensorStatus(currentReading.soilMoisture, 'soilMoisture'),
+            trend: Math.random() > 0.5 ? 'up' : 'down'
+          }
+        };
+        
+        setCurrentReadings(transformedReadings);
         setLastUpdate(new Date());
+        setIsConnected(true);
       } catch (error) {
         console.error('Failed to fetch initial IoT data:', error);
         setIsConnected(false);
@@ -110,12 +96,37 @@ export function IoTDashboard() {
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const [sensorResponse, currentResponse] = await Promise.all([
-          fetchSensorData(),
-          fetchCurrentReadings()
+        // Update with fresh data from placeholder API
+        const [sensorHistory, currentReading] = await Promise.all([
+          apiService.getSensorHistory(6), // Last 6 hours
+          apiService.getCurrentSensorData()
         ]);
-        setSensorData(sensorResponse);
-        setCurrentReadings(currentResponse);
+        
+        setSensorData(sensorHistory);
+        
+        // Transform current reading into expected format
+        const transformedReadings: CurrentReadings = {
+          temperature: {
+            value: currentReading.temperature,
+            unit: '°C',
+            status: getSensorStatus(currentReading.temperature, 'temperature'),
+            trend: Math.random() > 0.5 ? 'up' : 'down'
+          },
+          humidity: {
+            value: currentReading.humidity,
+            unit: '%',
+            status: getSensorStatus(currentReading.humidity, 'humidity'),
+            trend: Math.random() > 0.5 ? 'up' : 'down'
+          },
+          soilMoisture: {
+            value: currentReading.soilMoisture,
+            unit: '%',
+            status: getSensorStatus(currentReading.soilMoisture, 'soilMoisture'),
+            trend: Math.random() > 0.5 ? 'up' : 'down'
+          }
+        };
+        
+        setCurrentReadings(transformedReadings);
         setLastUpdate(new Date());
         setIsConnected(true);
       } catch (error) {
